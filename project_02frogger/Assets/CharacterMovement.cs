@@ -7,6 +7,7 @@ public class CharacterMovement : MonoBehaviour {
 	public float movespeed;
 	public float dashspeed;
 	public float jumppower;
+    public float airdrag;
 	int environmentmask;
 
 	Rigidbody rb;
@@ -16,6 +17,7 @@ public class CharacterMovement : MonoBehaviour {
 	bool jumping = false;
 	bool onGround;
 	Vector3 movevector;
+    Vector3 jumpvector;
 	Vector3 lookrot;
 	// Use this for initialization
 	void Start () {
@@ -31,7 +33,7 @@ public class CharacterMovement : MonoBehaviour {
 		h = Input.GetAxis ("Horizontal");
 		v = Input.GetAxis ("Vertical");
 
-		if (isGrounded () && Input.GetKeyDown (KeyCode.Space)) {
+		if (IsGrounded () && Input.GetKeyDown (KeyCode.Space)) {
 			jumping = true;
 		} else
 			jumping = false;
@@ -41,7 +43,7 @@ public class CharacterMovement : MonoBehaviour {
 		} else
 			dashing = false;
 
-		onGround = isGrounded ();
+		onGround = IsGrounded ();
 		Debug.Log (onGround);
 
 		Move (h, v, dashing, jumping);
@@ -54,34 +56,50 @@ public class CharacterMovement : MonoBehaviour {
 			_movspd = movespeed + dashspeed;
 		}
 
-		//ground movement
-		if (isGrounded ()) {
-			movevector = cam.transform.forward * v * _movspd + cam.transform.right * h * _movspd;
+        movevector = cam.transform.forward * v * _movspd + cam.transform.right * h * _movspd;
+        movevector.y = 0f;
 
-			if (jump) {
-				movevector.y += jumppower;
-			} else
-				movevector.y = 0f;
+        //ground movement
+        if (IsGrounded())
+        {
+            //movevector = cam.transform.forward * v * _movspd + cam.transform.right * h * _movspd;
 
-			float _amovspd = movevector.normalized.magnitude;
-			animator.SetFloat ("movespeed", _amovspd);
-		}
+            if (jump)
+            {
+                //movevector.y += jumppower;
+                jumpvector = Vector3.up * jumppower;
+            }
+            else
+            {
+                //movevector.y = 0f;
+                jumpvector = Vector3.zero;
+            }
+
+            float _amovspd = movevector.normalized.magnitude;
+            animator.SetFloat("movespeed", _amovspd);
+        }
+        else {
+            movevector -= movevector * airdrag;
+        }
 
 		//character rotation
-		if (movevector != Vector3.zero && !jump) {
-			Vector3 _r = movevector;
+		//if (movevector != Vector3.zero && !jump) {
+        if (movevector != Vector3.zero) {
+            Vector3 _r = movevector;
 			_r.y = 0f;
-			Quaternion _rot = Quaternion.LookRotation (_r);
+            float _rad = IsGrounded() ? 1f : airdrag;
+            _r *= _rad;
+            Quaternion _rot = Quaternion.LookRotation (_r * Time.fixedDeltaTime);
 			rb.MoveRotation (_rot);
 		}
 
 		//apply movement
-		rb.MovePosition (transform.position + movevector * Time.fixedDeltaTime);
+		rb.MovePosition (transform.position + (movevector + jumpvector) * Time.fixedDeltaTime);
 
 		animator.SetBool ("onDash", dash);
 	}
 
-	public bool isGrounded(){
+	public bool IsGrounded(){
 		return Physics.Raycast (transform.position, -Vector3.up, 0.1f, environmentmask);
 	}
 }
